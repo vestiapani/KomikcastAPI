@@ -1,3 +1,4 @@
+// scraper.ts
 const BE = "https://be.komikcast.cc";
 
 // ─── Fetch Helper ─────────────────────────────────────────────────────────────
@@ -36,7 +37,7 @@ export async function searchKomik(query: string, page = 1) {
   const rawFilter = `title=like="${query}",nativeTitle=like="${query}"`;
   const encodedFilter = encodeURIComponent(rawFilter);
   const data = await fetchAPI(
-    `/series?filter=${encodedFilter}&take=20&page=${page}&includeMeta=true`
+    `/series?filter=${encodedFilter}&take=20&page=${page}&includeMeta=true`,
   );
   return data;
 }
@@ -48,9 +49,9 @@ export async function getGenreList() {
 }
 
 // ─── KOMIK BY GENRE ───────────────────────────────────────────────────────────
-export async function getKomikByGenre(genreSlug: string, page = 1) {
+export async function getKomikByGenre(genreSlug: string, page = 1, take = 12) {
   const data = await fetchAPI(
-    `/series?genreIds=${genreSlug}&takeChapter=2&includeMeta=true&sort=latest&sortOrder=desc&take=20&page=${page}`
+    `/series?genreIds=${genreSlug}&takeChapter=2&includeMeta=true&sort=latest&sortOrder=desc&take=${take}&page=${page}`
   );
   return data;
 }
@@ -61,7 +62,13 @@ export async function getKomikDetail(slug: string) {
   return data;
 }
 
-// ─── CHAPTER ─────────────────────────────────────────────────────
+// ─── CHAPTER LIST (NEW) ───────────────────────────────────────────────────────
+export async function getChapterList(seriesSlug: string) {
+  const data = await fetchAPI(`/series/${seriesSlug}/chapters`);
+  return data;
+}
+
+// ─── CHAPTER DETAIL ───────────────────────────────────────────────────────────
 export async function getChapter(seriesSlug: string, chapterSlug: string) {
   const data = await fetchAPI(`/series/${seriesSlug}/chapters/${chapterSlug}`);
   return data;

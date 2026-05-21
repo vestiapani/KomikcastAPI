@@ -1,3 +1,4 @@
+// main.ts
 import { Hono } from "npm:hono";
 import { cors } from "npm:hono/cors";
 import {
@@ -5,6 +6,7 @@ import {
   getPopularKomik,
   getKomikDetail,
   getChapter,
+  getChapterList, // ✅ NEW IMPORT
   searchKomik,
   getGenreList,
   getKomikByGenre,
@@ -49,6 +51,7 @@ app.get("/", async (c) => {
         "GET /api/genre",
         "GET /api/genre/:slug?page=1",
         "GET /api/komik/:slug",
+        "GET /api/komik/:slug/chapters", // ✅ NEW
         "GET /api/chapter/:series/:chapter",
       ],
     });
@@ -105,7 +108,8 @@ app.get("/api/genre/:slug", async (c) => {
   try {
     const slug = c.req.param("slug");
     const page = Number(c.req.query("page") ?? 1);
-    const data = await getKomikByGenre(slug, page);
+    const take = Number(c.req.query("take") ?? 12); // ✅ Default 12 seperti URL asli
+    const data = await getKomikByGenre(slug, page, take);
     return ok(c, data);
   } catch (e) {
     return err(c, (e as Error).message);
@@ -123,7 +127,18 @@ app.get("/api/komik/:slug", async (c) => {
   }
 });
 
-// ─── CHAPTER (Menangkap :series dan :chapter) ─────────────────────────────────
+// ─── CHAPTER LIST (NEW) ───────────────────────────────────────────────────────
+app.get("/api/komik/:slug/chapters", async (c) => {
+  try {
+    const slug = c.req.param("slug");
+    const data = await getChapterList(slug);
+    return ok(c, data);
+  } catch (e) {
+    return err(c, (e as Error).message);
+  }
+});
+
+// ─── CHAPTER DETAIL ───────────────────────────────────────────────────────────
 app.get("/api/chapter/:series/:chapter", async (c) => {
   try {
     const series = c.req.param("series");
