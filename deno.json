@@ -1,0 +1,16 @@
+{
+  "name": "komikcast-api",
+  "version": "1.0.0",
+  "tasks": {
+    "dev": "deno run --allow-net --allow-env --allow-read --watch main.ts",
+    "start": "deno run --allow-net --allow-env --allow-read main.ts"
+  },
+  "imports": {
+    "hono": "https://deno.land/x/hono@v4.3.11/mod.ts",
+    "hono/cors": "https://deno.land/x/hono@v4.3.11/middleware.ts"
+  },
+  "deploy": {
+    "project": "komikcast-api",
+    "entrypoint": "main.ts"
+  }
+}
