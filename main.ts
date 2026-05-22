@@ -1,20 +1,17 @@
-// main.ts
 import { Hono } from "npm:hono";
 import { cors } from "npm:hono/cors";
 import {
+  getHomeData,
   getLatestKomik,
   getPopularKomik,
   getKomikDetail,
-  getChapter,
-  getChapterList, // ✅ NEW IMPORT
+  getChapterDetail,
   searchKomik,
   getGenreList,
-  getKomikByGenre,
 } from "./scraper.ts";
 
 const app = new Hono();
 
-// ─── CORS ─────────────────────────────────────────────────────────────────────
 app.use(
   "/*",
   cors({
@@ -29,72 +26,64 @@ app.use(
   }),
 );
 
-// ─── Helper response ──────────────────────────────────────────────────────────
 const ok = (c: any, data: unknown) => c.json({ success: true, data }, 200);
-
 const err = (c: any, message: string, status = 500) =>
   c.json({ success: false, message }, status);
 
-// ─── ROOT — serve playground UI ───────────────────────────────────────────────
 app.get("/", async (c) => {
   try {
     const html = await Deno.readTextFile("./public/index.html");
     return c.html(html);
   } catch {
-    return c.json({
-      name: "KomikCast Scraper API",
-      version: "1.0.0",
-      endpoints: [
-        "GET /api/latest?page=1",
-        "GET /api/popular?page=1",
-        "GET /api/search?q=demon&page=1",
-        "GET /api/genre",
-        "GET /api/genre/:slug?page=1",
-        "GET /api/komik/:slug",
-        "GET /api/komik/:slug/chapters", // ✅ NEW
-        "GET /api/chapter/:series/:chapter",
-      ],
-    });
+    return c.json({ message: "Playground UI tidak ditemukan." });
   }
 });
 
-// ─── LATEST ───────────────────────────────────────────────────────────────────
+// ─── ENDPOINT SESUAI MANGNIME (OLD API) ───────────────────────────────────────
+
+app.get("/api/home", async (c) => {
+  try {
+    const data = await getHomeData();
+    return ok(c, data);
+  } catch (e) {
+    return err(c, (e as Error).message);
+  }
+});
+
 app.get("/api/latest", async (c) => {
   try {
     const page = Number(c.req.query("page") ?? 1);
     const data = await getLatestKomik(page);
-    return ok(c, data);
+    return ok(c, data); // Akan me-return { success: true, data: { data: [...], meta: {...} } }
   } catch (e) {
     return err(c, (e as Error).message);
   }
 });
 
-// ─── POPULAR ──────────────────────────────────────────────────────────────────
 app.get("/api/popular", async (c) => {
   try {
     const page = Number(c.req.query("page") ?? 1);
-    const data = await getPopularKomik(page);
+    const category = c.req.query("category") ?? "all";
+    const data = await getPopularKomik(page, category);
     return ok(c, data);
   } catch (e) {
     return err(c, (e as Error).message);
   }
 });
 
-// ─── SEARCH ───────────────────────────────────────────────────────────────────
-app.get("/api/search", async (c) => {
+app.get("/api/advanceSearch", async (c) => {
   try {
-    const q = c.req.query("q");
+    const search = c.req.query("search");
     const page = Number(c.req.query("page") ?? 1);
-    if (!q) return err(c, "Parameter ?q= wajib diisi", 400);
-    const data = await searchKomik(q, page);
+    if (!search) return err(c, "Parameter ?search= wajib diisi", 400);
+    const data = await searchKomik(search, page);
     return ok(c, data);
   } catch (e) {
     return err(c, (e as Error).message);
   }
 });
 
-// ─── GENRE LIST ───────────────────────────────────────────────────────────────
-app.get("/api/genre", async (c) => {
+app.get("/api/genres", async (c) => {
   try {
     const data = await getGenreList();
     return ok(c, data);
@@ -103,20 +92,6 @@ app.get("/api/genre", async (c) => {
   }
 });
 
-// ─── KOMIK BY GENRE ───────────────────────────────────────────────────────────
-app.get("/api/genre/:slug", async (c) => {
-  try {
-    const slug = c.req.param("slug");
-    const page = Number(c.req.query("page") ?? 1);
-    const take = Number(c.req.query("take") ?? 12); // ✅ Default 12 seperti URL asli
-    const data = await getKomikByGenre(slug, page, take);
-    return ok(c, data);
-  } catch (e) {
-    return err(c, (e as Error).message);
-  }
-});
-
-// ─── KOMIK DETAIL ─────────────────────────────────────────────────────────────
 app.get("/api/komik/:slug", async (c) => {
   try {
     const slug = c.req.param("slug");
@@ -127,30 +102,18 @@ app.get("/api/komik/:slug", async (c) => {
   }
 });
 
-// ─── CHAPTER LIST (NEW) ───────────────────────────────────────────────────────
-app.get("/api/komik/:slug/chapters", async (c) => {
+// Rute ini penting: /komik/:slug/:chapterId
+app.get("/api/komik/:slug/:chapterId", async (c) => {
   try {
     const slug = c.req.param("slug");
-    const data = await getChapterList(slug);
+    const chapterId = c.req.param("chapterId");
+    const data = await getChapterDetail(slug, chapterId);
     return ok(c, data);
   } catch (e) {
     return err(c, (e as Error).message);
   }
 });
 
-// ─── CHAPTER DETAIL ───────────────────────────────────────────────────────────
-app.get("/api/chapter/:series/:chapter", async (c) => {
-  try {
-    const series = c.req.param("series");
-    const chapter = c.req.param("chapter");
-    const data = await getChapter(series, chapter);
-    return ok(c, data);
-  } catch (e) {
-    return err(c, (e as Error).message);
-  }
-});
-
-// ─── 404 ──────────────────────────────────────────────────────────────────────
 app.notFound((c) => err(c, "Endpoint tidak ditemukan", 404));
 
 Deno.serve({ port: 8000 }, app.fetch);

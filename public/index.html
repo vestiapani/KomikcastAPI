@@ -6,556 +6,120 @@
 <title>KomikCast API Playground</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700;800&display=swap');
-
-  :root {
-    --bg-base: #0B0E14;
-    --bg-surface: rgba(22, 26, 35, 0.7);
-    --bg-surface-hover: rgba(30, 35, 48, 0.8);
-    --border-color: rgba(255, 255, 255, 0.08);
-    --border-color-focus: rgba(99, 102, 241, 0.5);
-    
-    --text-primary: #F8FAFC;
-    --text-secondary: #94A3B8;
-    --text-muted: #64748B;
-    
-    --accent-primary: #6366f1;
-    --accent-primary-glow: rgba(99, 102, 241, 0.3);
-    --accent-success: #10B981;
-    --accent-success-glow: rgba(16, 185, 129, 0.2);
-    --accent-danger: #EF4444;
-    
-    --json-key: #7DD3FC;
-    --json-string: #A7F3D0;
-    --json-number: #FDBA74;
-    --json-boolean: #C084FC;
-    
-    --radius-sm: 8px;
-    --radius-md: 12px;
-    --radius-lg: 16px;
-    --radius-full: 9999px;
-  }
-
+  :root { --bg-base:#0B0E14; --bg-surface:rgba(22,26,35,0.7); --border-color:rgba(255,255,255,0.08); --text-primary:#F8FAFC; --text-secondary:#94A3B8; --accent-primary:#6366f1; --accent-success:#10B981; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    background-color: var(--bg-base);
-    color: var(--text-primary);
-    font-family: 'Inter', system-ui, sans-serif;
-    font-size: 14px;
-    height: 100vh;
-    /* ✅ HAPUS overflow: hidden */
-    display: flex;
-    flex-direction: column;
-    background-image: 
-      radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.08), transparent 25%),
-      radial-gradient(circle at 85% 30%, rgba(16, 185, 129, 0.05), transparent 25%);
-  }
-
-  ::-webkit-scrollbar { width: 8px; height: 8px; }
-  ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); border-radius: var(--radius-full); }
-  ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: var(--radius-full); }
-  ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.25); }
-
-  .topbar {
-    background: rgba(11, 14, 20, 0.8);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--border-color);
-    padding: 16px 24px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    z-index: 10;
-    flex-shrink: 0; /* ✅ Jangan mengecil */
-  }
-
-  .logo { font-size: 18px; font-weight: 800; letter-spacing: -0.03em; display: flex; align-items: center; gap: 8px; }
-  .logo-icon {
-    width: 24px; height: 24px;
-    background: linear-gradient(135deg, var(--accent-primary), var(--accent-success));
-    border-radius: 6px; display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 0 15px var(--accent-primary-glow);
-  }
-  .logo span {
-    background: linear-gradient(to right, #fff, #94A3B8);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  }
-
-  .badge {
-    background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color);
-    color: var(--text-secondary); border-radius: var(--radius-full);
-    padding: 4px 10px; font-size: 11px; font-weight: 600; font-family: 'Fira Code', monospace;
-  }
-  .badge-port {
-    background: var(--accent-success-glow); color: var(--accent-success);
-    border: 1px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius-full);
-    padding: 4px 10px; font-size: 11px; font-weight: 700; display: flex; align-items: center; gap: 6px;
-  }
-  .badge-port::before {
-    content: ''; display: block; width: 6px; height: 6px;
-    background: var(--accent-success); border-radius: 50%; box-shadow: 0 0 8px var(--accent-success);
-  }
-
-  /* ✅ PERBAIKAN: Layout full height dengan flex */
-  .layout { 
-    display: grid; 
-    grid-template-columns: 280px 1fr; 
-    flex: 1; /* ✅ Ambil sisa tinggi */
-    min-height: 0; /* ✅ Penting untuk overflow */
-    overflow: hidden;
-  }
-
-  .sidebar {
-    background: rgba(15, 18, 25, 0.4); 
-    border-right: 1px solid var(--border-color);
-    padding: 24px 16px; 
-    overflow-y: auto; 
-    display: flex; 
-    flex-direction: column; 
-    gap: 24px;
-  }
-
+  body { background-color: var(--bg-base); color: var(--text-primary); font-family: 'Inter', sans-serif; height: 100vh; display: flex; flex-direction: column; }
+  .topbar { background: rgba(11,14,20,0.8); border-bottom: 1px solid var(--border-color); padding: 16px 24px; display: flex; align-items: center; gap: 16px; }
+  .layout { display: grid; grid-template-columns: 280px 1fr; flex: 1; min-height: 0; overflow: hidden; }
+  .sidebar { background: rgba(15,18,25,0.4); border-right: 1px solid var(--border-color); padding: 24px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 24px; }
   .ep-group { display: flex; flex-direction: column; gap: 4px; }
-  .ep-label {
-    font-size: 11px; font-weight: 700; color: var(--text-muted);
-    padding: 0 8px 8px; letter-spacing: 0.05em; text-transform: uppercase;
-  }
-  .ep-btn {
-    width: 100%; text-align: left; background: transparent; border: 1px solid transparent;
-    border-radius: var(--radius-md); padding: 10px 12px; cursor: pointer; display: flex;
-    align-items: center; gap: 10px; color: var(--text-secondary); transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  }
+  .ep-label { font-size: 11px; font-weight: 700; color: #64748B; padding: 0 8px 8px; text-transform: uppercase; }
+  .ep-btn { width: 100%; text-align: left; background: transparent; border: 1px solid transparent; border-radius: 8px; padding: 10px 12px; cursor: pointer; display: flex; align-items: center; gap: 10px; color: var(--text-secondary); }
   .ep-btn:hover { background: var(--bg-surface); color: var(--text-primary); }
-  .ep-btn.active {
-    background: var(--bg-surface-hover); border-color: var(--border-color);
-    color: var(--text-primary); box-shadow: inset 0 0 20px rgba(0,0,0,0.2);
-  }
-  .mtag {
-    font-size: 10px; font-weight: 800; padding: 3px 6px; border-radius: 4px;
-    background: rgba(99, 102, 241, 0.15); color: var(--accent-primary); min-width: 36px; text-align: center;
-  }
-  .ep-path { font-size: 12px; font-family: 'Fira Code', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-  /* ✅ PERBAIKAN: Main container */
-  .main { 
-    display: flex; 
-    flex-direction: column; 
-    background: var(--bg-base);
-    min-height: 0; /* ✅ Penting */
-    overflow: hidden;
-  }
-
-  .req-panel {
-    padding: 24px; 
-    border-bottom: 1px solid var(--border-color);
-    background: linear-gradient(to bottom, rgba(15, 18, 25, 0.6), transparent);
-    flex-shrink: 0; /* ✅ Jangan mengecil */
-  }
-
-  .url-row {
-    display: flex; gap: 12px; align-items: center; background: var(--bg-surface);
-    padding: 6px; border-radius: var(--radius-lg); border: 1px solid var(--border-color);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.2); transition: border-color 0.2s;
-  }
-  .url-row:focus-within {
-    border-color: var(--border-color-focus);
-    box-shadow: 0 0 0 1px var(--accent-primary-glow), 0 4px 20px rgba(0,0,0,0.2);
-  }
-  .method-badge {
-    background: var(--accent-primary); color: white; border-radius: var(--radius-sm);
-    padding: 8px 14px; font-size: 12px; font-weight: 800; letter-spacing: 0.05em;
-  }
-  .url-input {
-    flex: 1; background: transparent; border: none; color: var(--text-primary);
-    font-family: 'Fira Code', monospace; font-size: 13px; outline: none; padding: 0 8px;
-  }
-  .send-btn {
-    background: var(--text-primary); color: var(--bg-base); border: none;
-    border-radius: var(--radius-sm); padding: 8px 24px; font-size: 13px; font-weight: 700;
-    cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;
-  }
-  .send-btn:hover { background: #E2E8F0; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(255,255,255,0.1); }
-  .send-btn:active { transform: translateY(0); }
-  .send-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-
+  .ep-btn.active { background: rgba(30,35,48,0.8); border-color: var(--border-color); color: var(--text-primary); }
+  .mtag { font-size: 10px; font-weight: 800; padding: 3px 6px; border-radius: 4px; background: rgba(99,102,241,0.15); color: var(--accent-primary); }
+  .ep-path { font-size: 12px; font-family: 'Fira Code', monospace; }
+  .main { display: flex; flex-direction: column; background: var(--bg-base); min-height: 0; overflow: hidden; }
+  .req-panel { padding: 24px; border-bottom: 1px solid var(--border-color); }
+  .url-row { display: flex; gap: 12px; align-items: center; background: var(--bg-surface); padding: 6px; border-radius: 12px; border: 1px solid var(--border-color); }
+  .method-badge { background: var(--accent-primary); color: white; border-radius: 6px; padding: 8px 14px; font-size: 12px; font-weight: 800; }
+  .url-input { flex: 1; background: transparent; border: none; color: var(--text-primary); font-family: 'Fira Code', monospace; outline: none; }
+  .send-btn { background: var(--text-primary); color: var(--bg-base); border: none; border-radius: 6px; padding: 8px 24px; font-weight: 700; cursor: pointer; }
   .params-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
-  .param-chip {
-    display: flex; align-items: center; background: var(--bg-surface); border: 1px solid var(--border-color);
-    border-radius: var(--radius-md); padding: 6px 12px; transition: border-color 0.2s;
-  }
-  .param-chip:focus-within { border-color: var(--text-secondary); }
-  .param-chip label { font-size: 11px; font-weight: 600; color: var(--text-muted); margin-right: 8px; text-transform: uppercase; }
-  .param-chip input {
-    background: transparent; border: none; color: var(--text-primary);
-    font-family: 'Fira Code', monospace; font-size: 13px; width: 120px; outline: none;
-  }
-
-  /* ✅ PERBAIKAN: Response panel */
-  .res-panel {
-    flex: 1; 
-    display: flex; 
-    flex-direction: column; 
-    margin: 24px;
-    background: var(--bg-surface); 
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-lg); 
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-    min-height: 0; /* ✅ PENTING: Biarkan flex child mengecil */
-    overflow: hidden; /* ✅ Container utama hidden, anaknya yang scroll */
-  }
-
-  .res-topbar {
-    padding: 12px 20px; 
-    border-bottom: 1px solid var(--border-color);
-    display: flex; 
-    align-items: center; 
-    gap: 16px; 
-    background: rgba(0,0,0,0.2);
-    flex-shrink: 0; /* ✅ Jangan mengecil */
-  }
-
-  .res-title { font-size: 12px; font-weight: 700; color: var(--text-secondary); }
-  .status-ok { color: var(--accent-success); font-family: 'Fira Code', monospace; font-size: 12px; font-weight: 600;}
-  .status-err { color: var(--accent-danger); font-family: 'Fira Code', monospace; font-size: 12px; font-weight: 600;}
-  .res-time { font-family: 'Fira Code', monospace; font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
-  .copy-btn {
-    margin-left: auto; background: transparent; border: 1px solid var(--border-color);
-    color: var(--text-secondary); border-radius: var(--radius-sm); padding: 6px 12px;
-    font-size: 12px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;
-  }
-  .copy-btn:hover { background: rgba(255,255,255,0.05); color: var(--text-primary); }
-
-  /* ✅ PERBAIKAN: Json wrap - ini yang di-scroll */
-  .json-wrap { 
-    flex: 1; 
-    overflow-y: auto; /* ✅ SCROLL VERTIKAL */
-    overflow-x: auto; /* ✅ SCROLL HORIZONTAL */
-    padding: 20px; 
-    background: rgba(0, 0, 0, 0.3);
-    min-height: 0; /* ✅ Penting */
-    -webkit-overflow-scrolling: touch; /* ✅ Smooth scroll di iOS */
-  }
-
-  /* ✅ PERBAIKAN: Json box tidak membatasi scroll */
-  .json-box { 
-    font-family: 'Fira Code', Consolas, monospace; 
-    font-size: 13px; 
-    line-height: 1.6; 
-    white-space: pre-wrap; 
-    word-break: break-word;
-    color: var(--text-secondary); 
-    /* ✅ HAPUS overflow */
-  }
-
-  .jk { color: var(--json-key); }
-  .js { color: var(--json-string); }
-  .jn { color: var(--json-number); }
-  .jb { color: var(--json-boolean); font-style: italic; }
-  .jnull { color: var(--text-muted); font-style: italic; }
-
-  .empty { 
-    height: 100%; 
-    display: flex; 
-    flex-direction: column; 
-    align-items: center; 
-    justify-content: center; 
-    gap: 16px; 
-    color: var(--text-muted); 
-  }
-  .empty-icon {
-    width: 64px; height: 64px; border-radius: 50%; background: rgba(255,255,255,0.02);
-    display: flex; align-items: center; justify-content: center; border: 1px dashed var(--border-color);
-  }
-  .loading { 
-    height: 100%; 
-    display: flex; 
-    flex-direction: column; 
-    align-items: center; 
-    justify-content: center; 
-    gap: 16px; 
-    color: var(--text-secondary); 
-  }
-  .loader {
-    width: 32px; height: 32px; border: 3px solid var(--border-color);
-    border-top-color: var(--accent-primary); border-radius: 50%; animation: spin 0.8s ease-in-out infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* ✅ RESPONSIVE */
-  @media (max-width: 768px) {
-    .layout {
-      grid-template-columns: 1fr;
-      grid-template-rows: auto 1fr;
-    }
-    .sidebar {
-      flex-direction: row;
-      overflow-x: auto;
-      padding: 12px 16px;
-      gap: 12px;
-    }
-    .ep-group {
-      flex-direction: row;
-      gap: 8px;
-    }
-    .ep-label {
-      display: none;
-    }
-    .res-panel {
-      margin: 12px;
-    }
-  }
+  .param-chip { display: flex; align-items: center; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 6px 12px; }
+  .param-chip label { font-size: 11px; font-weight: 600; color: #64748B; margin-right: 8px; text-transform: uppercase; }
+  .param-chip input { background: transparent; border: none; color: var(--text-primary); font-family: 'Fira Code', monospace; width: 120px; outline: none; }
+  .res-panel { flex: 1; display: flex; flex-direction: column; margin: 24px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; }
+  .json-wrap { flex: 1; overflow: auto; padding: 20px; background: rgba(0,0,0,0.3); }
+  .json-box { font-family: 'Fira Code', monospace; font-size: 13px; white-space: pre-wrap; color: var(--text-secondary); word-break: break-word; }
+  .jk { color: #7DD3FC; } .js { color: #A7F3D0; } .jn { color: #FDBA74; } .jb { color: #C084FC; }
 </style>
 </head>
 <body>
-
 <div class="topbar">
-  <div class="logo">
-    <div class="logo-icon">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-    </div>
-    <span>KomikCast API</span>
-  </div>
-  <span class="badge">Playground v2.1</span>
-  <span style="flex:1"></span>
-  <span class="badge-port">Target: :8000</span>
+  <div class="logo"><span>KomikCast API Adapter</span></div>
 </div>
-
 <div class="layout">
   <div class="sidebar">
     <div class="ep-group">
-      <div class="ep-label">Komik Data</div>
-      <button class="ep-btn active" onclick="sel(this,'/api/latest',['page'])">
-        <span class="mtag">GET</span><span class="ep-path">/api/latest</span>
-      </button>
-      <button class="ep-btn" onclick="sel(this,'/api/popular',['page'])">
-        <span class="mtag">GET</span><span class="ep-path">/api/popular</span>
-      </button>
-      <button class="ep-btn" onclick="sel(this,'/api/search',['q','page'])">
-        <span class="mtag">GET</span><span class="ep-path">/api/search</span>
-      </button>
+      <div class="ep-label">MangNime Endpoints</div>
+      <button class="ep-btn active" onclick="sel(this,'/api/home',[])"><span class="mtag">GET</span><span class="ep-path">/api/home</span></button>
+      <button class="ep-btn" onclick="sel(this,'/api/latest',['page'])"><span class="mtag">GET</span><span class="ep-path">/api/latest</span></button>
+      <button class="ep-btn" onclick="sel(this,'/api/popular',['category','page'])"><span class="mtag">GET</span><span class="ep-path">/api/popular</span></button>
+      <button class="ep-btn" onclick="sel(this,'/api/advanceSearch',['search','page'])"><span class="mtag">GET</span><span class="ep-path">/api/advanceSearch</span></button>
+      <button class="ep-btn" onclick="sel(this,'/api/genres',[])"><span class="mtag">GET</span><span class="ep-path">/api/genres</span></button>
     </div>
-    
     <div class="ep-group">
-      <div class="ep-label">Categories</div>
-      <button class="ep-btn" onclick="sel(this,'/api/genre',[])">
-        <span class="mtag">GET</span><span class="ep-path">/api/genre</span>
-      </button>
-      <button class="ep-btn" onclick="sel(this,'/api/genre/:slug',['slug','page'])">
-        <span class="mtag">GET</span><span class="ep-path">/api/genre/:slug</span>
-      </button>
-    </div>
-    
-    <div class="ep-group">
-      <div class="ep-label">Details & Reading</div>
-      <button class="ep-btn" onclick="sel(this,'/api/komik/:slug',['slug'])">
-        <span class="mtag">GET</span><span class="ep-path">/api/komik/:slug</span>
-      </button>
-      <button class="ep-btn" onclick="sel(this,'/api/chapter/:series/:chapter',['series','chapter'])">
-        <span class="mtag">GET</span><span class="ep-path">/api/chapter/:s/:c</span>
-      </button>
-      <button class="ep-btn" onclick="sel(this,'/api/komik/:slug/chapters',['slug'])">
-    <span class="mtag">GET</span><span class="ep-path">/api/komik/:slug/chapters</span>
-  </button>
+      <div class="ep-label">Details</div>
+      <button class="ep-btn" onclick="sel(this,'/api/komik/:slug',['slug'])"><span class="mtag">GET</span><span class="ep-path">/api/komik/:slug</span></button>
+      <button class="ep-btn" onclick="sel(this,'/api/komik/:slug/:chapterId',['slug','chapterId'])"><span class="mtag">GET</span><span class="ep-path">/api/komik/:slug/:chapterId</span></button>
     </div>
   </div>
-
   <div class="main">
     <div class="req-panel">
       <div class="url-row">
         <div class="method-badge">GET</div>
-        <input class="url-input" id="urlInput" value="http://localhost:8000/api/latest?page=1"/>
-        <button class="send-btn" id="sendBtn" onclick="send()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-          Send Request
-        </button>
+        <input class="url-input" id="urlInput"/>
+        <button class="send-btn" id="sendBtn" onclick="send()">Send</button>
       </div>
-      <div class="params-row" id="paramsRow">
-        </div>
+      <div class="params-row" id="paramsRow"></div>
     </div>
-
     <div class="res-panel">
-      <div class="res-topbar">
-        <span class="res-title">RESPONSE</span>
-        <div style="width: 1px; height: 16px; background: var(--border-color); margin: 0 8px;"></div>
-        <span id="statusBadge"></span>
-        <span id="resTime" class="res-time"></span>
-        <button class="copy-btn" id="copyBtn" onclick="copyJSON()" style="display:none">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-          Copy JSON
-        </button>
-      </div>
-      
-      <div class="json-wrap" id="jsonWrap">
-        </div>
+      <div class="json-wrap" id="jsonWrap">Click Send Request to execute</div>
     </div>
   </div>
 </div>
 
 <script>
 const BASE = window.location.origin;
-let curPath = '/api/latest', curParams = ['page'], lastJSON = '';
+let curPath = '/api/home', curParams = [];
 
-// Default dummy komik slug dari contoh Anda
-const DUMMY_SERIES = 'that-time-i-got-reincarnated-with-talent-ill-work-hard-even-if-i-go-to-another-world';
-
-// Inisialisasi awal saat load
-window.onload = () => {
-  sel(document.querySelector('.ep-btn'), '/api/latest', ['page']);
-};
+window.onload = () => { sel(document.querySelector('.ep-btn'), curPath, curParams); };
 
 function sel(btn, path, params) {
   document.querySelectorAll('.ep-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   curPath = path; curParams = params;
   buildInputs(params); buildUrl();
-  
-  document.getElementById('jsonWrap').innerHTML = `
-    <div class="empty">
-      <div class="empty-icon">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
-      </div>
-      <div style="text-align: center;">
-        <h3 style="color: var(--text-primary); margin-bottom: 4px; font-weight: 600;">Endpoint Selected</h3>
-        <p style="font-size: 13px;">Click Send Request to execute</p>
-      </div>
-    </div>
-  `;
-  document.getElementById('statusBadge').innerHTML = '';
-  document.getElementById('resTime').innerHTML = '';
-  document.getElementById('copyBtn').style.display = 'none';
 }
 
 function buildInputs(params) {
   const row = document.getElementById('paramsRow');
   if(!params.length) { row.innerHTML = ''; return; }
-  
   row.innerHTML = params.map(p => {
-    let defVal = '';
-    
-    // Logika pengisian otomatis dengan data yang 100% valid di Komikcast
-    if (p === 'page') defVal = '1';
-    else if (p === 'series') defVal = DUMMY_SERIES;
-    else if (p === 'chapter') defVal = '1.1';
-    else if (p === 'q') defVal = 'demon';
-    else if (p === 'slug') {
-      // Jika path-nya mengandung genre, default-nya 'Action', jika detail komik, gunakan slug panjang
-      defVal = curPath.includes('genre') ? 'Action' : DUMMY_SERIES;
-    }
-
-    return `
-    <div class="param-chip">
-      <label>${p}</label>
-      <input id="param-${p}" value="${defVal}" oninput="buildUrl()" style="${p==='series'||p==='slug'?'width:200px':''}"/>
-    </div>
-    `;
+    let defVal = p === 'page' ? '1' : p === 'search' ? 'demon' : p === 'slug' ? 'one-piece' : p === 'chapterId' ? '1110' : '';
+    return `<div class="param-chip"><label>${p}</label><input id="param-${p}" value="${defVal}" oninput="buildUrl()"/></div>`;
   }).join('');
 }
 
 function buildUrl() {
-  let path = curPath; 
-  const qs = [];
-  
+  let path = curPath; const qs = [];
   curParams.forEach(p => {
     const v = document.getElementById('param-'+p)?.value || '';
-    
-    if (path.includes(':' + p)) {
-      // Ganti path parameter
-      path = path.replace(':' + p, encodeURIComponent(v));
-    } else if (v) { 
-      // Tambahkan ke query string
-      qs.push(p + '=' + encodeURIComponent(v)); 
-    }
+    if (path.includes(':' + p)) path = path.replace(':' + p, encodeURIComponent(v));
+    else if (v) qs.push(p + '=' + encodeURIComponent(v));
   });
-  
   document.getElementById('urlInput').value = BASE + path + (qs.length ? '?' + qs.join('&') : '');
 }
 
 async function send() {
-  const url = document.getElementById('urlInput').value;
-  const btn = document.getElementById('sendBtn');
   const wrap = document.getElementById('jsonWrap');
-  
-  btn.disabled = true;
-  document.getElementById('statusBadge').innerHTML = '';
-  document.getElementById('resTime').innerHTML = '';
-  document.getElementById('copyBtn').style.display = 'none';
-  
-  wrap.innerHTML = `
-    <div class="loading">
-      <div class="loader"></div>
-      <span>Awaiting response...</span>
-    </div>
-  `;
-  
-  const t = Date.now();
+  wrap.innerHTML = `<div style="color:var(--text-secondary)">Loading...</div>`;
   try {
-    const res = await fetch(url);
-    const ms = Date.now() - t;
+    const res = await fetch(document.getElementById('urlInput').value);
     const json = await res.json();
-    
-    lastJSON = JSON.stringify(json, null, 2);
-    const hl = highlight(lastJSON);
-    
-    wrap.innerHTML = `<div class="json-box">${hl}</div>`;
-    
-    const statusClass = res.ok ? 'status-ok' : 'status-err';
-    const statusIcon = res.ok 
-      ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>'
-      : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
-    
-    document.getElementById('statusBadge').innerHTML = `
-      <span class="${statusClass}" style="display:flex;align-items:center;gap:4px;">
-        ${statusIcon} ${res.status} ${res.statusText}
-      </span>
-    `;
-    
-    document.getElementById('resTime').innerHTML = `
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-      ${ms}ms
-    `;
-    
-    document.getElementById('copyBtn').style.display = 'flex';
+    wrap.innerHTML = `<div class="json-box">${highlight(JSON.stringify(json, null, 2))}</div>`;
   } catch(e) {
-    wrap.innerHTML = `
-      <div class="json-box" style="color: var(--accent-danger)">
-// Network Error: ${e.message}
-// -----------------------------------------------------
-// Pastikan server Deno sudah berjalan!
-      </div>
-    `;
-    document.getElementById('statusBadge').innerHTML = `
-      <span class="status-err" style="display:flex;align-items:center;gap:4px;">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-        ERR_CONNECTION
-      </span>
-    `;
+    wrap.innerHTML = `<div style="color:#EF4444">Error: ${e.message}</div>`;
   }
-  btn.disabled = false;
 }
 
 function highlight(str) {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, m => {
-      let c = 'jn';
-      if (/^"/.test(m)) c = /:$/.test(m) ? 'jk' : 'js';
-      else if (/true|false/.test(m)) c = 'jb';
-      else if (/null/.test(m)) c = 'jnull';
+      let c = 'jn'; if (/^"/.test(m)) c = /:$/.test(m) ? 'jk' : 'js'; else if (/true|false/.test(m)) c = 'jb'; else if (/null/.test(m)) c = 'jnull';
       return `<span class="${c}">${m}</span>`;
     });
-}
-
-function copyJSON() {
-  navigator.clipboard.writeText(lastJSON).then(() => {
-    const b = document.getElementById('copyBtn');
-    b.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Copied!';
-    b.style.color = 'var(--accent-success)';
-    b.style.borderColor = 'var(--accent-success)';
-    
-    setTimeout(() => {
-      b.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> Copy JSON';
-      b.style.color = '';
-      b.style.borderColor = '';
-    }, 2000);
-  });
 }
 </script>
 </body>
