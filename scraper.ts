@@ -165,8 +165,11 @@ export async function getPopularKomik(page = 1, category = "all") {
   const key = `popular:${page}:${category}`;
   const cached = getCache(key);
   if (cached) return cached;
+  
+  const normalizedCategory = category.toLowerCase();
+  const filter =
+    normalizedCategory !== "all" ? `&format=${normalizedCategory}` : "";
 
-  const filter = category && category !== "all" ? `&format=${category}` : "";
   const data = await fetchAPI(
     `/series?preset=popular_all&take=20&page=${page}${filter}`,
   );
