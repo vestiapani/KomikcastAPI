@@ -54,7 +54,7 @@ app.get("/api/latest", async (c) => {
   try {
     const page = Number(c.req.query("page") ?? 1);
     const data = await getLatestKomik(page);
-    return ok(c, data); // Akan me-return { success: true, data: { data: [...], meta: {...} } }
+    return ok(c, data);
   } catch (e) {
     return err(c, (e as Error).message);
   }
@@ -73,10 +73,15 @@ app.get("/api/popular", async (c) => {
 
 app.get("/api/advanceSearch", async (c) => {
   try {
-    const search = c.req.query("search");
+    const search = c.req.query("search") || "";
+    const genreIds = c.req.query("genreIds") || "";
     const page = Number(c.req.query("page") ?? 1);
-    if (!search) return err(c, "Parameter ?search= wajib diisi", 400);
-    const data = await searchKomik(search, page);
+
+    // ✅ Memperbolehkan pencarian asalkan setidaknya ada 'search' atau 'genreIds'
+    if (!search && !genreIds)
+      return err(c, "Parameter ?search= atau ?genreIds= wajib diisi", 400);
+
+    const data = await searchKomik(search, page, genreIds);
     return ok(c, data);
   } catch (e) {
     return err(c, (e as Error).message);
@@ -102,7 +107,6 @@ app.get("/api/komik/:slug", async (c) => {
   }
 });
 
-// Rute ini penting: /komik/:slug/:chapterId
 app.get("/api/komik/:slug/:chapterId", async (c) => {
   try {
     const slug = c.req.param("slug");

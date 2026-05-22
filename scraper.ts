@@ -133,13 +133,24 @@ export async function getPopularKomik(page = 1, category = "all") {
   };
 }
 
-// 4. SEARCH
-export async function searchKomik(query: string, page = 1) {
-  const rawFilter = `title=like="${query}",nativeTitle=like="${query}"`;
-  const encodedFilter = encodeURIComponent(rawFilter);
-  const data = await fetchAPI(
-    `/series?filter=${encodedFilter}&take=20&page=${page}&includeMeta=true`,
-  );
+// 4. SEARCH (Bisa cari pakai Judul ATAU Genre)
+export async function searchKomik(
+  query: string,
+  page = 1,
+  genreIds: string = "",
+) {
+  let url = `/series?take=20&page=${page}&includeMeta=true`;
+
+  if (query) {
+    const rawFilter = `title=like="${query}",nativeTitle=like="${query}"`;
+    url += `&filter=${encodeURIComponent(rawFilter)}`;
+  }
+
+  if (genreIds) {
+    url += `&genreIds=${genreIds}`;
+  }
+
+  const data = await fetchAPI(url);
   return {
     data: (data?.data || []).map(normalizeCard),
     meta: data?.meta || { page, lastPage: 50 },
@@ -168,7 +179,6 @@ export async function getChapterDetail(
 // 7. GENRE LIST
 export async function getGenreList() {
   const data = await fetchAPI(`/genres`);
-  // Pastikan formatnya sesuai yang dibutuhkan frontend
   const genresArray = data?.data || data || [];
   return genresArray.map((g: any) => {
     const gData = g.data || g;

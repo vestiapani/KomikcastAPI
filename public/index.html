@@ -46,7 +46,7 @@
       <button class="ep-btn active" onclick="sel(this,'/api/home',[])"><span class="mtag">GET</span><span class="ep-path">/api/home</span></button>
       <button class="ep-btn" onclick="sel(this,'/api/latest',['page'])"><span class="mtag">GET</span><span class="ep-path">/api/latest</span></button>
       <button class="ep-btn" onclick="sel(this,'/api/popular',['category','page'])"><span class="mtag">GET</span><span class="ep-path">/api/popular</span></button>
-      <button class="ep-btn" onclick="sel(this,'/api/advanceSearch',['search','page'])"><span class="mtag">GET</span><span class="ep-path">/api/advanceSearch</span></button>
+      <button class="ep-btn" onclick="sel(this,'/api/advanceSearch',['search','genreIds','page'])"><span class="mtag">GET</span><span class="ep-path">/api/advanceSearch</span></button>
       <button class="ep-btn" onclick="sel(this,'/api/genres',[])"><span class="mtag">GET</span><span class="ep-path">/api/genres</span></button>
     </div>
     <div class="ep-group">
@@ -87,7 +87,11 @@ function buildInputs(params) {
   const row = document.getElementById('paramsRow');
   if(!params.length) { row.innerHTML = ''; return; }
   row.innerHTML = params.map(p => {
-    let defVal = p === 'page' ? '1' : p === 'search' ? 'demon' : p === 'slug' ? 'one-piece' : p === 'chapterId' ? '1110' : '';
+    let defVal = p === 'page' ? '1' : 
+                 p === 'search' ? 'demon' : 
+                 p === 'genreIds' ? '' : // Biarkan kosong secara default
+                 p === 'slug' ? 'legend-of-the-northern-blade' : 
+                 p === 'chapterId' ? '17' : '';
     return `<div class="param-chip"><label>${p}</label><input id="param-${p}" value="${defVal}" oninput="buildUrl()"/></div>`;
   }).join('');
 }
