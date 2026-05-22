@@ -12,6 +12,7 @@ import {
 
 const app = new Hono();
 
+// ─── CORS ─────────────────────────────────────────────────────────────────────
 app.use(
   "/*",
   cors({
@@ -26,10 +27,52 @@ app.use(
   }),
 );
 
+// ─── Rate Limiter (per IP, 60 req/menit) ─────────────────────────────────────
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT = { maxRequests: 60, windowMs: 60 * 1000 };
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT.windowMs });
+    return true;
+  }
+  if (entry.count >= RATE_LIMIT.maxRequests) return false;
+  entry.count++;
+  return true;
+}
+
+app.use("/api/*", async (c, next) => {
+  const ip = c.req.header("x-forwarded-for") ?? "unknown";
+  if (!checkRateLimit(ip)) {
+    return c.json(
+      { success: false, message: "Terlalu banyak request. Coba lagi nanti." },
+      429,
+    );
+  }
+  await next();
+});
+
+// ─── Input Sanitizer ──────────────────────────────────────────────────────────
+function sanitize(input: string, maxLength = 100): string {
+  return input
+    .trim()
+    .slice(0, maxLength)
+    .replace(/[<>"'`;]/g, "");
+}
+
+function sanitizePage(raw: string | undefined): number {
+  const n = Number(raw ?? 1);
+  return Math.min(Math.max(Number.isFinite(n) ? n : 1, 1), 500);
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 const ok = (c: any, data: unknown) => c.json({ success: true, data }, 200);
 const err = (c: any, message: string, status = 500) =>
   c.json({ success: false, message }, status);
 
+// ─── PLAYGROUND ───────────────────────────────────────────────────────────────
 app.get("/", async (c) => {
   try {
     const html = await Deno.readTextFile("./public/index.html");
@@ -39,8 +82,7 @@ app.get("/", async (c) => {
   }
 });
 
-// ─── ENDPOINT SESUAI MANGNIME (OLD API) ───────────────────────────────────────
-
+// ─── ENDPOINTS ────────────────────────────────────────────────────────────────
 app.get("/api/home", async (c) => {
   try {
     const data = await getHomeData();
@@ -52,7 +94,7 @@ app.get("/api/home", async (c) => {
 
 app.get("/api/latest", async (c) => {
   try {
-    const page = Number(c.req.query("page") ?? 1);
+    const page = sanitizePage(c.req.query("page"));
     const data = await getLatestKomik(page);
     return ok(c, data);
   } catch (e) {
@@ -62,8 +104,8 @@ app.get("/api/latest", async (c) => {
 
 app.get("/api/popular", async (c) => {
   try {
-    const page = Number(c.req.query("page") ?? 1);
-    const category = c.req.query("category") ?? "all";
+    const page = sanitizePage(c.req.query("page"));
+    const category = sanitize(c.req.query("category") ?? "all", 20);
     const data = await getPopularKomik(page, category);
     return ok(c, data);
   } catch (e) {
@@ -73,11 +115,10 @@ app.get("/api/popular", async (c) => {
 
 app.get("/api/advanceSearch", async (c) => {
   try {
-    const search = c.req.query("search") || "";
-    const genreIds = c.req.query("genreIds") || "";
-    const page = Number(c.req.query("page") ?? 1);
+    const search = sanitize(c.req.query("search") || "", 100);
+    const genreIds = sanitize(c.req.query("genreIds") || "", 50);
+    const page = sanitizePage(c.req.query("page"));
 
-    // ✅ Memperbolehkan pencarian asalkan setidaknya ada 'search' atau 'genreIds'
     if (!search && !genreIds)
       return err(c, "Parameter ?search= atau ?genreIds= wajib diisi", 400);
 
@@ -99,7 +140,7 @@ app.get("/api/genres", async (c) => {
 
 app.get("/api/komik/:slug", async (c) => {
   try {
-    const slug = c.req.param("slug");
+    const slug = sanitize(c.req.param("slug"), 200);
     const data = await getKomikDetail(slug);
     return ok(c, data);
   } catch (e) {
@@ -109,8 +150,8 @@ app.get("/api/komik/:slug", async (c) => {
 
 app.get("/api/komik/:slug/:chapterId", async (c) => {
   try {
-    const slug = c.req.param("slug");
-    const chapterId = c.req.param("chapterId");
+    const slug = sanitize(c.req.param("slug"), 200);
+    const chapterId = sanitize(c.req.param("chapterId"), 100);
     const data = await getChapterDetail(slug, chapterId);
     return ok(c, data);
   } catch (e) {
