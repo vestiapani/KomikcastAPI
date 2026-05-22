@@ -1,7 +1,35 @@
 const BE = "https://be.komikcast.cc";
 
+// ─── In-Memory Cache ──────────────────────────────────────────────────────────
+const cache = new Map<string, { data: unknown; expiredAt: number }>();
+
+const TTL = {
+  home: 30 * 60 * 1000, // 30 menit
+  list: 15 * 60 * 1000, // 15 menit (latest, popular, search, genre)
+  detail: 60 * 60 * 1000, // 1 jam
+  chapter: 24 * 60 * 60 * 1000, // 24 jam
+};
+
+function getCache(key: string) {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiredAt) {
+    cache.delete(key);
+    return null;
+  }
+  return entry.data;
+}
+
+function setCache(key: string, data: unknown, ttl: number) {
+  cache.set(key, { data, expiredAt: Date.now() + ttl });
+}
+
+// ─── Rate Limit Helper ────────────────────────────────────────────────────────
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 // ─── Fetch Helper ─────────────────────────────────────────────────────────────
 async function fetchAPI(path: string) {
+  await delay(500);
   const res = await fetch(`${BE}${path}`, {
     headers: {
       Origin: "https://v2.komikcast.fit",
@@ -15,12 +43,10 @@ async function fetchAPI(path: string) {
   return await res.json();
 }
 
-// ─── NORMALIZERS (Menerjemahkan API Asli ke Format MangNime) ────────────────
+// ─── NORMALIZERS ─────────────────────────────────────────────────────────────
 const normalizeCard = (item: any) => {
-  // Menembus bungkus ganda JSON: item -> item.data -> item.data.data
   const d = item.data?.title ? item.data : item.data?.data || item.data || item;
 
-  // ✅ FIX: Ekstrak chapter dengan melihat properti 'index' jika 'slug' null
   let chapterText = "";
   if (d.chapters && d.chapters.length > 0) {
     const firstCh = d.chapters[0].data || d.chapters[0];
@@ -45,16 +71,14 @@ const normalizeDetail = (detailItem: any, chaptersData: any[] = []) => {
     ? detailItem.data
     : detailItem.data?.data || detailItem.data || detailItem;
 
-  // Menyesuaikan format Genre untuk MangNime
   const mappedGenres = (d.genres || []).map((g: any) => {
     const gData = g.data || g;
     return { id: g.id || gData.name, name: gData.name, slug: gData.name };
   });
 
-  // ✅ FIX: Menyesuaikan format Chapter list dengan menangkap properti 'index'
   const mappedChapters = (chaptersData || []).map((ch: any) => {
     const chData = ch.data || ch;
-    const chapSlug = chData.slug || chData.index; // <-- Menggunakan .index
+    const chapSlug = chData.slug || chData.index;
     return {
       chapterIndex: chapSlug,
       title: chData.title || `Chapter ${chapSlug}`,
@@ -75,7 +99,6 @@ const normalizeDetail = (detailItem: any, chaptersData: any[] = []) => {
     synopsis: d.synopsis || "Sinopsis belum tersedia.",
     genres: mappedGenres,
     readChapter: mappedChapters,
-    // Menambahkan rekomendasi komik di halaman detail
     recommended: (d.recommended || []).map(normalizeCard),
   };
 };
@@ -89,7 +112,7 @@ const normalizeChapterDetail = (
   return {
     komikTitle: d.title || seriesSlug.replace(/-/g, " "),
     chapterIndex: chapterSlug,
-    images: d.images || [], // Biasanya array string URL gambar
+    images: d.images || [],
     prevChapterId: d.prev || null,
     nextChapterId: d.next || null,
   };
@@ -99,103 +122,158 @@ const normalizeChapterDetail = (
 
 // 1. GET HOME
 export async function getHomeData() {
-  const [popularRes, latestRes] = await Promise.all([
-    fetchAPI(`/series?preset=popular_all&take=10&page=1`),
-    fetchAPI(`/series?preset=rilisan_terbaru&take=15&page=1`),
-  ]);
+  const key = "home";
+  const cached = getCache(key);
+  if (cached) return cached;
 
-  return {
+  const popularRes = await fetchAPI(
+    `/series?preset=popular_all&take=10&page=1`,
+  );
+  const latestRes = await fetchAPI(
+    `/series?preset=rilisan_terbaru&take=15&page=1`,
+  );
+
+  const result = {
     popular: (popularRes?.data || []).map(normalizeCard),
     newest: (latestRes?.data || []).map(normalizeCard),
   };
+
+  setCache(key, result, TTL.home);
+  return result;
 }
 
 // 2. LATEST
 export async function getLatestKomik(page = 1) {
+  const key = `latest:${page}`;
+  const cached = getCache(key);
+  if (cached) return cached;
+
   const data = await fetchAPI(
     `/series?preset=rilisan_terbaru&take=20&page=${page}`,
   );
-  return {
+  const result = {
     data: (data?.data || []).map(normalizeCard),
     meta: data?.meta || { page, lastPage: 50 },
   };
+
+  setCache(key, result, TTL.list);
+  return result;
 }
 
-// 3. POPULAR (Fix Category: Manga, Manhwa, Manhua)
+// 3. POPULAR
 export async function getPopularKomik(page = 1, category = "all") {
+  const key = `popular:${page}:${category}`;
+  const cached = getCache(key);
+  if (cached) return cached;
+
   const filter = category && category !== "all" ? `&format=${category}` : "";
   const data = await fetchAPI(
     `/series?preset=popular_all&take=20&page=${page}${filter}`,
   );
-  return {
+  const result = {
     data: (data?.data || []).map(normalizeCard),
     meta: data?.meta || { page, lastPage: 50 },
   };
+
+  setCache(key, result, TTL.list);
+  return result;
 }
 
-// 4. SEARCH (Bisa cari pakai Judul ATAU Genre)
+// 4. SEARCH
 export async function searchKomik(
   query: string,
   page = 1,
   genreIds: string = "",
 ) {
-  let url = `/series?take=20&page=${page}&includeMeta=true`;
+  const key = `search:${query}:${page}:${genreIds}`;
+  const cached = getCache(key);
+  if (cached) return cached;
 
+  let url = `/series?take=20&page=${page}&includeMeta=true`;
   if (query) {
     const rawFilter = `title=like="${query}",nativeTitle=like="${query}"`;
     url += `&filter=${encodeURIComponent(rawFilter)}`;
   }
-
-  if (genreIds) {
-    url += `&genreIds=${genreIds}`;
-  }
+  if (genreIds) url += `&genreIds=${genreIds}`;
 
   const data = await fetchAPI(url);
-  return {
+  const result = {
     data: (data?.data || []).map(normalizeCard),
     meta: data?.meta || { page, lastPage: 50 },
   };
+
+  setCache(key, result, TTL.list);
+  return result;
 }
 
-// 5. KOMIK DETAIL (Menggabungkan Detail + List Chapter)
+// 5. KOMIK DETAIL
 export async function getKomikDetail(slug: string) {
-  const [detailRaw, chaptersRaw] = await Promise.all([
-    fetchAPI(`/series/${slug}?includeMeta=true`).catch(() => null),
-    fetchAPI(`/series/${slug}/chapters`).catch(() => null),
-  ]);
+  const key = `detail:${slug}`;
+  const cached = getCache(key);
+  if (cached) return cached;
 
-  return normalizeDetail(detailRaw, chaptersRaw?.data || []);
+  const detailRaw = await fetchAPI(`/series/${slug}?includeMeta=true`).catch(
+    () => null,
+  );
+  const chaptersRaw = await fetchAPI(`/series/${slug}/chapters`).catch(
+    () => null,
+  );
+  const result = normalizeDetail(detailRaw, chaptersRaw?.data || []);
+
+  setCache(key, result, TTL.detail);
+  return result;
 }
 
-// 6. CHAPTER DETAIL (Baca Komik)
+// 6. CHAPTER DETAIL
 export async function getChapterDetail(
   seriesSlug: string,
   chapterSlug: string,
 ) {
+  const key = `chapter:${seriesSlug}:${chapterSlug}`;
+  const cached = getCache(key);
+  if (cached) return cached;
+
   const data = await fetchAPI(`/series/${seriesSlug}/chapters/${chapterSlug}`);
-  return normalizeChapterDetail(data, seriesSlug, chapterSlug);
+  const result = normalizeChapterDetail(data, seriesSlug, chapterSlug);
+
+  setCache(key, result, TTL.chapter);
+  return result;
 }
 
 // 7. GENRE LIST
 export async function getGenreList() {
+  const key = "genres";
+  const cached = getCache(key);
+  if (cached) return cached;
+
   const data = await fetchAPI(`/genres`);
   const genresArray = data?.data || data || [];
-  return genresArray.map((g: any) => {
+  const result = genresArray.map((g: any) => {
     const gData = g.data || g;
     return {
       id: g.id,
       data: { name: gData.name, description: gData.description },
     };
   });
+
+  setCache(key, result, TTL.detail);
+  return result;
 }
 
 // 8. KOMIK BY GENRE
 export async function getKomikByGenre(genreSlug: string, page = 1, take = 12) {
+  const key = `genre:${genreSlug}:${page}`;
+  const cached = getCache(key);
+  if (cached) return cached;
+
   const data = await fetchAPI(
     `/series?genreIds=${genreSlug}&sort=latest&sortOrder=desc&take=${take}&page=${page}`,
   );
-  return {
+  const result = {
     data: (data?.data || []).map(normalizeCard),
     meta: data?.meta || { page, lastPage: 50 },
   };
+
+  setCache(key, result, TTL.list);
+  return result;
 }
