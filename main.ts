@@ -19,8 +19,11 @@ app.use("*", logger());
 app.use("*", async (c, next) => {
   const userAgent = c.req.header("User-Agent") || "Unknown Bot";
   
-  const blockedBots = ["ClaudeBot", "GPTBot", "ChatGPT", "CCBot"];
-  const isBotBlocked = blockedBots.some((bot) => userAgent.includes(bot));
+  const blockedBots = ["Claude", "GPTBot", "ChatGPT", "CCBot", "anthropic"];
+  const isBotBlocked = blockedBots.some((bot) =>
+    userAgent.toLowerCase().includes(bot.toLowerCase()),
+  );
+  
 
   if (isBotBlocked) {
     console.log(`[DITENDANG] AI Bot mencoba masuk: ${userAgent}`);
