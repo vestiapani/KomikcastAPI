@@ -17,8 +17,14 @@ const app = new Hono();
 app.use("*", logger());
 app.use("*", async (c, next) => {
   const userAgent = c.req.header("User-Agent") || "Unknown Bot";
-  const ip = c.req.header("x-forwarded-for") || "Unknown IP";
-  
+
+  // ✅ FIX: Cek semua kemungkinan kantong rahasia tempat IP disembunyikan
+  const ip =
+    c.req.header("x-forwarded-for") ||
+    c.req.header("x-real-ip") ||
+    c.req.header("cf-connecting-ip") ||
+    "Unknown IP";
+
   // Hanya log ke console Deno agar kita bisa intip pelakunya
   console.log(`[CCTV] Akses dari IP: ${ip} | User-Agent: ${userAgent}`);
   await next();
@@ -39,27 +45,41 @@ app.use(
   }),
 );
 
-// ─── Rate Limiter (per IP, 60 req/menit) ─────────────────────────────────────
+// ─── Rate Limiter (Satpam Penjaga) ───────────────────────────────────────────
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT = { maxRequests: 60, windowMs: 60 * 1000 };
 
 function checkRateLimit(ip: string): boolean {
   const now = Date.now();
+
+  // ✅ FIX: Kalau yang datang adalah Vercel (Unknown IP), kasih batas 2000 req/menit
+  // Kalau pengunjung biasa (IP angka), kasih batas normal 60 req/menit
+  const maxRequests = ip === "Unknown IP" ? 2000 : 60;
+  const windowMs = 60 * 1000;
+
   const entry = rateLimitMap.get(ip);
   if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT.windowMs });
+    rateLimitMap.set(ip, { count: 1, resetAt: now + windowMs });
     return true;
   }
-  if (entry.count >= RATE_LIMIT.maxRequests) return false;
+  if (entry.count >= maxRequests) return false;
   entry.count++;
   return true;
 }
 
 app.use("/api/*", async (c, next) => {
-  const ip = c.req.header("x-forwarded-for") ?? "unknown";
+  // ✅ FIX: Ambil IP dengan cara yang sama seperti di CCTV
+  const ip =
+    c.req.header("x-forwarded-for") ||
+    c.req.header("x-real-ip") ||
+    c.req.header("cf-connecting-ip") ||
+    "Unknown IP";
+
   if (!checkRateLimit(ip)) {
     return c.json(
-      { success: false, message: "Terlalu banyak request. Coba lagi nanti." },
+      {
+        success: false,
+        message: "Terlalu banyak request. Server sedang sibuk.",
+      },
       429,
     );
   }
