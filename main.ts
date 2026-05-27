@@ -48,8 +48,7 @@ app.use(
 
 // ─── Rate Limiter (Satpam Penjaga) ───────────────────────────────────────────
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-// ✅ FIX: Dinaikkan menjadi 500 req/menit karena Vercel mewakili banyak user
-const RATE_LIMIT = { maxRequests: 500, windowMs: 60 * 1000 };
+const RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
 
 function checkRateLimit(ip: string): boolean {
   const now = Date.now();
