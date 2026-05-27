@@ -64,16 +64,33 @@ function checkRateLimit(ip: string): boolean {
 }
 
 app.use("/api/*", async (c, next) => {
+  const authToken = c.req.header("Authorization");
+  const SECRET_KEY = Deno.env.get("API_SECRET_KEY");
+
+  if (!authToken || authToken !== `Bearer ${SECRET_KEY}`) {
+    return c.json(
+      {
+        success: false,
+        message: "Akses ditolak. Token tidak valid atau tidak disertakan.",
+      },
+      401,
+    );
+  }
+
   const info = getConnInfo(c);
-  const ip = c.req.header("x-forwarded-for") || 
-             c.req.header("x-real-ip") || 
-             c.req.header("cf-connecting-ip") || 
-             info?.remote?.address || 
-             "Unknown IP";
-             
+  const ip =
+    c.req.header("x-forwarded-for") ||
+    c.req.header("x-real-ip") ||
+    c.req.header("cf-connecting-ip") ||
+    info?.remote?.address ||
+    "Unknown IP";
+
   if (!checkRateLimit(ip)) {
     return c.json(
-      { success: false, message: "Terlalu banyak request. Server sedang sibuk." },
+      {
+        success: false,
+        message: "Terlalu banyak request. Server sedang sibuk.",
+      },
       429,
     );
   }
