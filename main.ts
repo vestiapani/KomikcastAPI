@@ -1,5 +1,7 @@
 import { Hono } from "npm:hono";
 import { cors } from "npm:hono/cors";
+import { logger } from "npm:hono/logger";
+import { getConnInfo } from "npm:hono/deno"; // ✅ FIX: Import alat pelacak IP asli Deno
 import {
   getHomeData,
   getLatestKomik,
@@ -9,7 +11,6 @@ import {
   searchKomik,
   getGenreList,
 } from "./scraper.ts";
-import { logger } from "npm:hono/logger";
 
 const app = new Hono();
 
@@ -17,15 +18,15 @@ const app = new Hono();
 app.use("*", logger());
 app.use("*", async (c, next) => {
   const userAgent = c.req.header("User-Agent") || "Unknown Bot";
-
-  // ✅ FIX: Cek semua kemungkinan kantong rahasia tempat IP disembunyikan
-  const ip =
-    c.req.header("x-forwarded-for") ||
-    c.req.header("x-real-ip") ||
-    c.req.header("cf-connecting-ip") ||
-    "Unknown IP";
-
-  // Hanya log ke console Deno agar kita bisa intip pelakunya
+  
+  // ✅ FIX: Kombinasi header Vercel dan alat pelacak bawaan Deno
+  const info = getConnInfo(c);
+  const ip = c.req.header("x-forwarded-for") || 
+             c.req.header("x-real-ip") || 
+             c.req.header("cf-connecting-ip") || 
+             info?.remote?.address || // <-- Mengambil IP mentah (Raw TCP)
+             "Unknown IP";
+  
   console.log(`[CCTV] Akses dari IP: ${ip} | User-Agent: ${userAgent}`);
   await next();
 });
@@ -47,39 +48,32 @@ app.use(
 
 // ─── Rate Limiter (Satpam Penjaga) ───────────────────────────────────────────
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+// ✅ FIX: Dinaikkan menjadi 500 req/menit karena Vercel mewakili banyak user
+const RATE_LIMIT = { maxRequests: 500, windowMs: 60 * 1000 };
 
 function checkRateLimit(ip: string): boolean {
   const now = Date.now();
-
-  // ✅ FIX: Kalau yang datang adalah Vercel (Unknown IP), kasih batas 2000 req/menit
-  // Kalau pengunjung biasa (IP angka), kasih batas normal 60 req/menit
-  const maxRequests = ip === "Unknown IP" ? 2000 : 60;
-  const windowMs = 60 * 1000;
-
   const entry = rateLimitMap.get(ip);
   if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + windowMs });
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT.windowMs });
     return true;
   }
-  if (entry.count >= maxRequests) return false;
+  if (entry.count >= RATE_LIMIT.maxRequests) return false;
   entry.count++;
   return true;
 }
 
 app.use("/api/*", async (c, next) => {
-  // ✅ FIX: Ambil IP dengan cara yang sama seperti di CCTV
-  const ip =
-    c.req.header("x-forwarded-for") ||
-    c.req.header("x-real-ip") ||
-    c.req.header("cf-connecting-ip") ||
-    "Unknown IP";
-
+  const info = getConnInfo(c);
+  const ip = c.req.header("x-forwarded-for") || 
+             c.req.header("x-real-ip") || 
+             c.req.header("cf-connecting-ip") || 
+             info?.remote?.address || 
+             "Unknown IP";
+             
   if (!checkRateLimit(ip)) {
     return c.json(
-      {
-        success: false,
-        message: "Terlalu banyak request. Server sedang sibuk.",
-      },
+      { success: false, message: "Terlalu banyak request. Server sedang sibuk." },
       429,
     );
   }
