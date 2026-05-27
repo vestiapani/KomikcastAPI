@@ -189,7 +189,7 @@ Cache disimpan di memori Deno Deploy dan akan reset saat instance restart atau d
 
 ```javascript
 // services/komikApi.js
-const KOMIK_API_URL = "https://komikcastapi.vestiapani.deno.net/api";
+const KOMIK_API_URL = "";
 
 export const getHomeKomik     = (options = {}) => fetchKomikAPI("/home", 0, options);
 export const getLatestKomik   = (page = 1, options = {}) => fetchKomikAPI(`/latest?page=${page}`, 0, options);
