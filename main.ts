@@ -50,6 +50,15 @@ app.use(
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
 
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of rateLimitMap.entries()) {
+    if (now > entry.resetAt) {
+      rateLimitMap.delete(ip);
+    }
+  }
+}, 5 * 60 * 1000);
+
 function checkRateLimit(ip: string): boolean {
   const now = Date.now();
   const entry = rateLimitMap.get(ip);
