@@ -19,12 +19,22 @@ app.use("*", logger());
 app.use("*", async (c, next) => {
   const userAgent = c.req.header("User-Agent") || "Unknown Bot";
   
-  // ✅ FIX: Kombinasi header Vercel dan alat pelacak bawaan Deno
+  const blockedBots = ["ClaudeBot", "GPTBot", "ChatGPT", "CCBot"];
+  const isBotBlocked = blockedBots.some((bot) => userAgent.includes(bot));
+
+  if (isBotBlocked) {
+    console.log(`[DITENDANG] AI Bot mencoba masuk: ${userAgent}`);
+    return c.json(
+      { success: false, message: "AI Bots are strictly prohibited." },
+      403,
+    );
+  }
+
   const info = getConnInfo(c);
   const ip = c.req.header("x-forwarded-for") || 
              c.req.header("x-real-ip") || 
              c.req.header("cf-connecting-ip") || 
-             info?.remote?.address || // <-- Mengambil IP mentah (Raw TCP)
+             info?.remote?.address ||
              "Unknown IP";
   
   console.log(`[CCTV] Akses dari IP: ${ip} | User-Agent: ${userAgent}`);
