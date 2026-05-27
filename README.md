@@ -80,7 +80,7 @@ git push origin main
 
 URL yang didapat:
 ```
-https://komikcastapi.vestiapani.deno.net
+
 ```
 
 ---
