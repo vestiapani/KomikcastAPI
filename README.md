@@ -1,24 +1,52 @@
-# KomikCast Scraper API 🚀
+# KomikCast Adapter API 🚀
 
-API scraper untuk KomikCast, di-deploy ke **Deno Deploy**.
+API adapter untuk [MangNime](https://mangnime.vercel.app) yang bertindak sebagai jembatan antara frontend Next.js dengan backend asli KomikCast. Di-deploy ke **Deno Deploy**.
 
 ---
 
 ## 📁 Struktur File
 
 ```
-komikcast-api/
-├── main.ts       ← Server utama (Hono routes)
-├── scraper.ts    ← Logic scraping HTML
-├── deno.json     ← Konfigurasi Deno
+KomikcastAPI/
+├── main.ts         ← Server utama (Hono routes, rate limiter, sanitizer)
+├── scraper.ts      ← Logic fetching + normalisasi data ke format MangNime
+├── deno.json       ← Konfigurasi Deno
+├── public/
+│   └── index.html  ← API Playground (dashboard testing live)
 └── README.md
 ```
 
 ---
 
-## 🛠️ Cara Deploy ke Deno Deploy
+## 🏗️ Arsitektur
 
-### Langkah 1 — Install Deno (lokal, opsional untuk testing)
+```
+MangNime (Next.js)
+      ↓  fetch
+main.ts  (Hono — routing, rate limit, sanitize input)
+      ↓
+scraper.ts  (fetch ke BE KomikCast → normalisasi → in-memory cache)
+      ↓
+be.komikcast.cc  (backend asli KomikCast)
+```
+
+**Adapter Pattern** — data mentah dari KomikCast dinormalisasi agar 100% kompatibel dengan format yang diharapkan frontend MangNime, tanpa perlu mengubah komponen UI.
+
+---
+
+## 🛡️ Fitur Keamanan
+
+- **Rate Limiting** — 60 request/menit per IP, respons 429 jika terlampaui
+- **Input Sanitizer** — semua parameter query & slug dibersihkan dari karakter berbahaya
+- **CORS** — hanya domain MangNime dan localhost yang diizinkan
+- **In-Memory Cache** — mengurangi beban hit ke backend KomikCast
+
+---
+
+## 🛠️ Cara Deploy
+
+### Langkah 1 — Install Deno (opsional, untuk testing lokal)
+
 ```bash
 # Windows (PowerShell)
 irm https://deno.land/install.ps1 | iex
@@ -28,26 +56,31 @@ curl -fsSL https://deno.land/install.sh | sh
 ```
 
 ### Langkah 2 — Test di lokal
+
 ```bash
 deno task dev
 # Server berjalan di http://localhost:8000
 ```
 
-### Langkah 3 — Upload ke GitHub
-1. Buat repo baru di GitHub (misal: `komikcast-api`)
-2. Push ketiga file (`main.ts`, `scraper.ts`, `deno.json`) ke repo tersebut
+### Langkah 3 — Push ke GitHub
+
+```bash
+git add .
+git commit -m "deploy: initial setup"
+git push origin main
+```
 
 ### Langkah 4 — Deploy ke Deno Deploy
-1. Buka https://dash.deno.com
-2. Klik **"New Project"**
-3. Pilih **"Deploy from GitHub"**
-4. Pilih repo `komikcast-api`
-5. Set **entrypoint** ke `main.ts`
-6. Klik **Deploy** ✅
 
-Deno Deploy akan memberikan URL seperti:
+1. Buka https://dash.deno.com
+2. Klik **"New Project"** → **"Deploy from GitHub"**
+3. Pilih repo `KomikcastAPI`
+4. Set **entrypoint** ke `main.ts`
+5. Klik **Deploy** ✅
+
+URL yang didapat:
 ```
-https://komikcast-api.deno.dev
+https://komikcastapi.vestiapani.deno.net
 ```
 
 ---
@@ -56,105 +89,122 @@ https://komikcast-api.deno.dev
 
 | Method | Endpoint | Deskripsi |
 |--------|----------|-----------|
-| GET | `/` | Info API |
-| GET | `/api/latest?page=1` | Komik terbaru |
-| GET | `/api/popular?page=1` | Komik terpopuler |
-| GET | `/api/search?q=naruto&page=1` | Cari komik |
-| GET | `/api/genre` | List semua genre |
-| GET | `/api/genre/:slug?page=1` | Komik berdasarkan genre |
+| GET | `/` | API Playground |
+| GET | `/api/home` | Data home (popular + terbaru) |
+| GET | `/api/latest?page=1` | Komik update terbaru |
+| GET | `/api/popular?page=1&category=all` | Komik terpopuler |
+| GET | `/api/advanceSearch?search=naruto` | Cari komik by judul |
+| GET | `/api/advanceSearch?genreIds=19` | Cari komik by genre ID |
+| GET | `/api/genres` | List semua genre |
 | GET | `/api/komik/:slug` | Detail komik + daftar chapter |
-| GET | `/api/chapter/:slug` | Baca chapter (list gambar) |
+| GET | `/api/komik/:slug/:chapterId` | Baca chapter (list gambar) |
+
+**Filter `category`** pada `/api/popular`: `all` · `manga` · `manhwa` · `manhua`
 
 ---
 
 ## 💻 Contoh Response
 
-### GET /api/latest
+### GET /api/home
+
 ```json
 {
   "success": true,
   "data": {
-    "page": 1,
-    "hasNext": true,
-    "results": [
+    "popular": [
       {
-        "title": "One Piece",
-        "slug": "one-piece",
-        "cover": "https://...",
-        "type": "Manga",
-        "status": "Ongoing",
-        "chapter": "Chapter 1110",
-        "rating": "9.5"
+        "title": "Magic Emperor",
+        "slug": "magic-emperor",
+        "image": "https://minio.imgkc1.my.id/...",
+        "score": 9,
+        "type": "manhua",
+        "status": "ongoing",
+        "chapter": "Ch 865"
       }
-    ]
+    ],
+    "newest": []
   }
 }
 ```
 
 ### GET /api/komik/:slug
+
 ```json
 {
   "success": true,
   "data": {
-    "title": "One Piece",
-    "cover": "https://...",
-    "type": "Manga",
-    "status": "Ongoing",
-    "author": "Eiichiro Oda",
-    "genres": ["Action", "Adventure"],
+    "title": "Nano Machine",
+    "nativeTitle": "나노 마신",
+    "slug": "nano-machine",
+    "cover": "https://minio.imgkc1.my.id/...",
+    "backgroundImage": "https://minio.imgkc1.my.id/...",
+    "rating": 9,
+    "status": "ongoing",
+    "author": "Geumgang Bulgoe",
+    "format": "manhwa",
+    "totalChapters": 315,
     "synopsis": "...",
-    "chapters": [
-      { "title": "Chapter 1110", "slug": "one-piece-chapter-1110", "date": "2024-01-01" }
-    ]
+    "genres": [
+      { "id": 19, "name": "Action", "slug": "Action" }
+    ],
+    "readChapter": [
+      { "chapterIndex": "315", "title": "Chapter 315" }
+    ],
+    "recommended": []
   }
 }
 ```
 
-### GET /api/chapter/:slug
+### GET /api/komik/:slug/:chapterId
+
 ```json
 {
   "success": true,
   "data": {
-    "title": "One Piece Chapter 1110",
-    "images": ["https://cdn.../page1.jpg", "https://cdn.../page2.jpg"],
-    "prev": "one-piece-chapter-1109",
-    "next": "one-piece-chapter-1111"
+    "komikTitle": "Nano Machine",
+    "chapterIndex": "315",
+    "images": ["https://cdn.../page1.webp", "https://cdn.../page2.webp"],
+    "prevChapterId": "314",
+    "nextChapterId": null
   }
 }
 ```
 
 ---
 
-## 🔗 Integrasi di Mangnime (Next.js/React)
+## ⏱️ Cache TTL
+
+| Data | Durasi |
+|------|--------|
+| Home | 20 menit |
+| Latest / Popular / Search | 10 menit |
+| Detail komik | 30 menit |
+| Chapter (gambar) | 24 jam |
+
+Cache disimpan di memori Deno Deploy dan akan reset saat instance restart atau deploy ulang.
+
+---
+
+## 🔗 Integrasi di MangNime (Next.js)
 
 ```javascript
-// lib/api.js
-const API_BASE = "https://komikcast-api.deno.dev";
+// services/komikApi.js
+const KOMIK_API_URL = "https://komikcastapi.vestiapani.deno.net/api";
 
-export const getLatest = (page = 1) =>
-  fetch(`${API_BASE}/api/latest?page=${page}`).then(r => r.json());
-
-export const getKomikDetail = (slug) =>
-  fetch(`${API_BASE}/api/komik/${slug}`).then(r => r.json());
-
-export const getChapter = (slug) =>
-  fetch(`${API_BASE}/api/chapter/${slug}`).then(r => r.json());
-
-export const search = (q, page = 1) =>
-  fetch(`${API_BASE}/api/search?q=${q}&page=${page}`).then(r => r.json());
-```
-
-```jsx
-// Contoh penggunaan di komponen
-const { data } = await getLatest(1);
-data.results.map(komik => <KomikCard key={komik.slug} {...komik} />);
+export const getHomeKomik     = (options = {}) => fetchKomikAPI("/home", 0, options);
+export const getLatestKomik   = (page = 1, options = {}) => fetchKomikAPI(`/latest?page=${page}`, 0, options);
+export const getPopularKomik  = (page = 1, category = "all", options = {}) => fetchKomikAPI(`/popular?category=${category}&page=${page}`, 0, options);
+export const getKomikDetail   = (slug, options = {}) => fetchKomikAPI(`/komik/${slug}`, 0, options);
+export const getChapterDetail = (slug, chapterId, options = {}) => fetchKomikAPI(`/komik/${slug}/${chapterId}`, 0, options);
+export const searchKomik      = (keyword, options = {}) => fetchKomikAPI(`/advanceSearch?search=${encodeURIComponent(keyword)}`, 0, options);
 ```
 
 ---
 
 ## ⚠️ Catatan Penting
 
-- **CORS** sudah dikonfigurasi untuk `mangnime.vercel.app` dan `localhost:3000/5173`
-- Jika ada perubahan struktur HTML di KomikCast, selector di `scraper.ts` perlu disesuaikan
-- Deno Deploy **gratis** untuk penggunaan normal (100k request/hari)
-- Tambahkan domain kamu di bagian `origin` di `main.ts` jika URL Vercel berbeda
+- **Signed URL gambar** dari KomikCast expire setiap 24 jam — TTL cache di-set di bawah batas ini agar gambar tidak broken
+- **Rate limit** hanya berlaku untuk endpoint `/api/*`, halaman Playground `/` tidak terkena
+- Jika struktur response backend KomikCast berubah, sesuaikan fungsi `normalizeCard` / `normalizeDetail` di `scraper.ts`
+- Tambahkan domain kamu di array `origin` pada `main.ts` jika URL Vercel berbeda dari `mangnime.vercel.app`
+- Deno Deploy **gratis** hingga 100k request/hari
