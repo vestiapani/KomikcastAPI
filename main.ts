@@ -9,8 +9,20 @@ import {
   searchKomik,
   getGenreList,
 } from "./scraper.ts";
+import { logger } from "npm:hono/logger";
 
 const app = new Hono();
+
+// --- CCTV LOGGER ---
+app.use("*", logger());
+app.use("*", async (c, next) => {
+  const userAgent = c.req.header("User-Agent") || "Unknown Bot";
+  const ip = c.req.header("x-forwarded-for") || "Unknown IP";
+  
+  // Hanya log ke console Deno agar kita bisa intip pelakunya
+  console.log(`[CCTV] Akses dari IP: ${ip} | User-Agent: ${userAgent}`);
+  await next();
+});
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
 app.use(
