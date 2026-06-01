@@ -82,6 +82,7 @@ const normalizeDetail = (detailItem: any, chaptersData: any[] = []) => {
     return {
       chapterIndex: chapSlug,
       title: chData.title || `Chapter ${chapSlug}`,
+      createdAt: ch.createdAt || null,
     };
   });
 
@@ -121,6 +122,7 @@ const normalizeChapterDetail = (
   const prevChapter = currentPos > 0 ? sorted[currentPos - 1] : null;
   const nextChapter =
     currentPos < sorted.length - 1 ? sorted[currentPos + 1] : null;
+    const currentChapter = currentPos >= 0 ? sorted[currentPos] : null;
 
   return {
     komikTitle: d.title || seriesSlug.replace(/-/g, " "),
@@ -128,6 +130,7 @@ const normalizeChapterDetail = (
     images: d.images || [],
     prevChapterId: prevChapter?.data?.index ?? null,
     nextChapterId: nextChapter?.data?.index ?? null,
+    createdAt: currentChapter?.createdAt ?? item.createdAt ?? null,
   };
 };
 
