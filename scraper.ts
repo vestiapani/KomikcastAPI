@@ -107,14 +107,27 @@ const normalizeChapterDetail = (
   item: any,
   seriesSlug: string,
   chapterSlug: string,
+  chapters: any[] = [],
 ) => {
   const d = item.data?.title ? item.data : item.data?.data || item.data || item;
+
+  const chapterIndex = item.data?.chapterIndex ?? Number(chapterSlug);
+
+  const sorted = [...chapters].sort(
+    (a, b) => (a.data?.index ?? 0) - (b.data?.index ?? 0),
+  );
+
+  const currentPos = sorted.findIndex((ch) => ch.data?.index === chapterIndex);
+  const prevChapter = currentPos > 0 ? sorted[currentPos - 1] : null;
+  const nextChapter =
+    currentPos < sorted.length - 1 ? sorted[currentPos + 1] : null;
+
   return {
     komikTitle: d.title || seriesSlug.replace(/-/g, " "),
-    chapterIndex: chapterSlug,
+    chapterIndex,
     images: d.images || [],
-    prevChapterId: d.prev || null,
-    nextChapterId: d.next || null,
+    prevChapterId: prevChapter?.data?.index ?? null,
+    nextChapterId: nextChapter?.data?.index ?? null,
   };
 };
 
@@ -236,8 +249,13 @@ export async function getChapterDetail(
   const cached = getCache(key);
   if (cached) return cached;
 
-  const data = await fetchAPI(`/series/${seriesSlug}/chapters/${chapterSlug}`);
-  const result = normalizeChapterDetail(data, seriesSlug, chapterSlug);
+  const [data, chaptersRaw] = await Promise.all([
+    fetchAPI(`/series/${seriesSlug}/chapters/${chapterSlug}`),
+    fetchAPI(`/series/${seriesSlug}/chapters`).catch(() => null),
+  ]);
+
+  const chapters = chaptersRaw?.data || [];
+  const result = normalizeChapterDetail(data, seriesSlug, chapterSlug, chapters);
 
   setCache(key, result, TTL.chapter);
   return result;
