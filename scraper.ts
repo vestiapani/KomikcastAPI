@@ -203,8 +203,9 @@ export async function searchKomik(
   query: string,
   page = 1,
   genreIds: string = "",
+  format: string = "",
 ) {
-  const key = `search:${query}:${page}:${genreIds}`;
+  const key = `search:${query}:${page}:${genreIds}:${format}`;
   const cached = getCache(key);
   if (cached) return cached;
 
@@ -214,6 +215,10 @@ export async function searchKomik(
     url += `&filter=${encodeURIComponent(rawFilter)}`;
   }
   if (genreIds) url += `&genreIds=${genreIds}`;
+
+  if (format && format.toLowerCase() !== "all") {
+    url += `&format=${format.toLowerCase()}`;
+  }
 
   const data = await fetchAPI(url);
   const result = {

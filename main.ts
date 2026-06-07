@@ -181,12 +181,17 @@ app.get("/api/advanceSearch", async (c) => {
   try {
     const search = sanitize(c.req.query("search") || "", 100);
     const genreIds = sanitize(c.req.query("genreIds") || "", 50);
+    const format = sanitize(c.req.query("format") || "", 20);
     const page = sanitizePage(c.req.query("page"));
 
-    if (!search && !genreIds)
-      return err(c, "Parameter ?search= atau ?genreIds= wajib diisi", 400);
-
-    const data = await searchKomik(search, page, genreIds);
+    if (!search && !genreIds && !format) {
+      return err(
+        c,
+        "Parameter pencarian wajib diisi (search / genre / format)",
+        400,
+      );
+    }
+    const data = await searchKomik(search, page, genreIds, format);
     return ok(c, data);
   } catch (e) {
     return err(c, (e as Error).message);
