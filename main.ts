@@ -50,6 +50,7 @@ app.use(
   cors({
     origin: [
       "https://mangnime.vercel.app",
+      "https://mangnime.my.id",
       "http://localhost:3000",
       "http://localhost:5173",
     ],

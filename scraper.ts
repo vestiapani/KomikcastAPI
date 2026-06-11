@@ -1,7 +1,7 @@
 const BE = "https://be.komikcast.cc";
 
-// ─── In-Memory Cache ──────────────────────────────────────────────────────────
-const cache = new Map<string, { data: unknown; expiredAt: number }>();
+// ─── Deno KV Cache  ──────────────────────────────────
+const kv = await Deno.openKv();
 
 const TTL = {
   home: 30 * 60 * 1000, // 30 menit
@@ -10,18 +10,26 @@ const TTL = {
   chapter: 24 * 60 * 60 * 1000, // 24 jam
 };
 
-function getCache(key: string) {
-  const entry = cache.get(key);
-  if (!entry) return null;
-  if (Date.now() > entry.expiredAt) {
-    cache.delete(key);
+async function getCache(key: string) {
+  const entry = await kv.get(["komik_cache", key]);
+
+  if (!entry.value) return null;
+
+  const { data, expiredAt } = entry.value as {
+    data: unknown;
+    expiredAt: number;
+  };
+
+  if (Date.now() > expiredAt) {
+    await kv.delete(["komik_cache", key]);
     return null;
   }
-  return entry.data;
+  return data;
 }
 
-function setCache(key: string, data: unknown, ttl: number) {
-  cache.set(key, { data, expiredAt: Date.now() + ttl });
+async function setCache(key: string, data: unknown, ttl: number) {
+  const expiredAt = Date.now() + ttl;
+  await kv.set(["komik_cache", key], { data, expiredAt }, { expireIn: ttl });
 }
 
 // ─── Rate Limit Helper ────────────────────────────────────────────────────────
@@ -122,7 +130,7 @@ const normalizeChapterDetail = (
   const prevChapter = currentPos > 0 ? sorted[currentPos - 1] : null;
   const nextChapter =
     currentPos < sorted.length - 1 ? sorted[currentPos + 1] : null;
-    const currentChapter = currentPos >= 0 ? sorted[currentPos] : null;
+  const currentChapter = currentPos >= 0 ? sorted[currentPos] : null;
 
   return {
     komikTitle: d.title || seriesSlug.replace(/-/g, " "),
@@ -139,7 +147,7 @@ const normalizeChapterDetail = (
 // 1. GET HOME
 export async function getHomeData() {
   const key = "home";
-  const cached = getCache(key);
+  const cached = await getCache(key);
   if (cached) return cached;
 
   const popularRes = await fetchAPI(
@@ -154,14 +162,14 @@ export async function getHomeData() {
     newest: (latestRes?.data || []).map(normalizeCard),
   };
 
-  setCache(key, result, TTL.home);
+  await setCache(key, result, TTL.home);
   return result;
 }
 
 // 2. LATEST
 export async function getLatestKomik(page = 1) {
   const key = `latest:${page}`;
-  const cached = getCache(key);
+  const cached = await getCache(key);
   if (cached) return cached;
 
   const data = await fetchAPI(
@@ -172,16 +180,16 @@ export async function getLatestKomik(page = 1) {
     meta: data?.meta || { page, lastPage: 50 },
   };
 
-  setCache(key, result, TTL.list);
+  await setCache(key, result, TTL.list);
   return result;
 }
 
 // 3. POPULAR
 export async function getPopularKomik(page = 1, category = "all") {
   const key = `popular:${page}:${category}`;
-  const cached = getCache(key);
+  const cached = await getCache(key);
   if (cached) return cached;
-  
+
   const normalizedCategory = category.toLowerCase();
   const filter =
     normalizedCategory !== "all" ? `&format=${normalizedCategory}` : "";
@@ -194,7 +202,7 @@ export async function getPopularKomik(page = 1, category = "all") {
     meta: data?.meta || { page, lastPage: 50 },
   };
 
-  setCache(key, result, TTL.list);
+  await setCache(key, result, TTL.list);
   return result;
 }
 
@@ -206,7 +214,7 @@ export async function searchKomik(
   format: string = "",
 ) {
   const key = `search:${query}:${page}:${genreIds}:${format}`;
-  const cached = getCache(key);
+  const cached = await getCache(key);
   if (cached) return cached;
 
   let url = `/series?take=20&page=${page}&includeMeta=true`;
@@ -226,14 +234,14 @@ export async function searchKomik(
     meta: data?.meta || { page, lastPage: 50 },
   };
 
-  setCache(key, result, TTL.list);
+  await setCache(key, result, TTL.list);
   return result;
 }
 
 // 5. KOMIK DETAIL
 export async function getKomikDetail(slug: string) {
   const key = `detail:${slug}`;
-  const cached = getCache(key);
+  const cached = await getCache(key);
   if (cached) return cached;
 
   const detailRaw = await fetchAPI(`/series/${slug}?includeMeta=true`).catch(
@@ -244,7 +252,7 @@ export async function getKomikDetail(slug: string) {
   );
   const result = normalizeDetail(detailRaw, chaptersRaw?.data || []);
 
-  setCache(key, result, TTL.detail);
+  await setCache(key, result, TTL.detail);
   return result;
 }
 
@@ -254,7 +262,7 @@ export async function getChapterDetail(
   chapterSlug: string,
 ) {
   const key = `chapter:${seriesSlug}:${chapterSlug}`;
-  const cached = getCache(key);
+  const cached = await getCache(key);
   if (cached) return cached;
 
   const [data, chaptersRaw] = await Promise.all([
@@ -263,16 +271,21 @@ export async function getChapterDetail(
   ]);
 
   const chapters = chaptersRaw?.data || [];
-  const result = normalizeChapterDetail(data, seriesSlug, chapterSlug, chapters);
+  const result = normalizeChapterDetail(
+    data,
+    seriesSlug,
+    chapterSlug,
+    chapters,
+  );
 
-  setCache(key, result, TTL.chapter);
+  await setCache(key, result, TTL.chapter);
   return result;
 }
 
 // 7. GENRE LIST
 export async function getGenreList() {
   const key = "genres";
-  const cached = getCache(key);
+  const cached = await getCache(key);
   if (cached) return cached;
 
   const data = await fetchAPI(`/genres`);
@@ -285,14 +298,14 @@ export async function getGenreList() {
     };
   });
 
-  setCache(key, result, TTL.detail);
+  await setCache(key, result, TTL.detail);
   return result;
 }
 
 // 8. KOMIK BY GENRE
 export async function getKomikByGenre(genreSlug: string, page = 1, take = 12) {
   const key = `genre:${genreSlug}:${page}`;
-  const cached = getCache(key);
+  const cached = await getCache(key);
   if (cached) return cached;
 
   const data = await fetchAPI(
@@ -303,6 +316,6 @@ export async function getKomikByGenre(genreSlug: string, page = 1, take = 12) {
     meta: data?.meta || { page, lastPage: 50 },
   };
 
-  setCache(key, result, TTL.list);
+  await setCache(key, result, TTL.list);
   return result;
 }
