@@ -1,6 +1,8 @@
 {
   "name": "komikcast-api",
   "version": "1.0.0",
+  "exports":"./main.ts",
+  "unstable": ["kv"],
   "tasks": {
     "dev": "deno run --allow-net --allow-env --allow-read --watch main.ts",
     "start": "deno run --allow-net --allow-env --allow-read main.ts"
